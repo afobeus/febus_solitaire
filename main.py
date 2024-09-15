@@ -4,73 +4,86 @@ import os
 
 WIDTH, HEIGHT = 800, 600
 CARD_WIDTH, CARD_HEIGHT = 72, 96
+BETWEEN_CARDS = 20
 FPS = 60
 NUM_FOUNDATIONS = 4
 NUM_PILES = 7
 ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
 suits = ['hearts', 'diamonds', 'clubs', 'spades']
+colors_by_suits = {'hearts': 0, 'diamonds': 0, 'clubs': 1, 'spades': 1}
 rank_order = ['K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2', 'A']
 
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption('Solitaire Klondike')
+pygame.display.set_caption('Febus Solitaire')
 clock = pygame.time.Clock()
-
-
-def load_cards():
-    return [f'{rank}_of_{suit}.jpg' for suit in suits for rank in ranks]
 
 
 class Card(pygame.sprite.Sprite):
     def __init__(self, suit, rank):
         super().__init__()
-        self.suit = suit
-        self.rank = rank
-        self.image = pygame.image.load(os.path.join('cards', f'{rank}_of_{suit}.jpg'))
-        self.image = pygame.transform.scale(self.image, (CARD_WIDTH, CARD_HEIGHT))
+        self.suit, self.rank = suit, rank
+        self.face_up_image = pygame.image.load(os.path.join('cards', f'{rank}_of_{suit}.jpg'))
+        self.face_up_image = pygame.transform.scale(self.face_up_image, (CARD_WIDTH, CARD_HEIGHT))
+        self.face_down_image = pygame.image.load(os.path.join('cards', f'closed_card.png'))
+        self.face_down_image = pygame.transform.scale(self.face_down_image, (CARD_WIDTH, CARD_HEIGHT))
+        self.image = self.face_down_image
         self.rect = self.image.get_rect()
-        # self.rect.topleft = (0, 0)
-        self.face_up = True
+        # self.rect.topleft = (0, 0) ???
+        self.static_cords = (0, 0)
+        self.face_up = False
 
-    def is_valid_move(self, target):
-        if not target:
-            return False
-        if isinstance(target, Foundation):
-            if not target.cards:
-                return self.rank == 'A'
-            return self.suit == target.cards[-1].suit and \
-                self.rank == ranks[ranks.index(target.cards[-1].rank) + 1]
-        elif isinstance(target, Pile):  # TODO: no color checking
-            return self.rank in valid_moves_pile(self, target)
-        return False
+    def change_face_state(self):
+        if self.face_up:
+            self.image = self.face_down_image
+        else:
+            self.image = self.face_up_image
+        self.face_up = not self.face_up
 
 
-class Foundation(pygame.sprite.Sprite):
-    def __init__(self, suit, x, y):
-        super().__init__()
-        self.suit = suit
-        self.cards = []
-        self.rect = pygame.Rect(x, y, CARD_WIDTH, CARD_HEIGHT)
-        self.image = pygame.Surface((CARD_WIDTH, CARD_HEIGHT))
-        self.image.fill((255, 255, 255))  # Белый фон для области основания
-
-
-class Pile(pygame.sprite.Sprite):
+class Container(pygame.sprite.Sprite):
     def __init__(self, x, y):
         super().__init__()
         self.cards = []
         self.rect = pygame.Rect(x, y, CARD_WIDTH, CARD_HEIGHT)
+        self.collision_rect = pygame.Rect(x, y, CARD_WIDTH, CARD_HEIGHT)
         self.image = pygame.Surface((CARD_WIDTH, CARD_HEIGHT))
-        self.image.fill((255, 255, 255))  # Белый фон для области колоды
+        self.image.fill((255, 255, 255))
 
 
-def valid_moves_pile(card, pile):
-    if not pile.cards:
-        return []
-    top_card = pile.cards[-1]
-    top_rank_index = rank_order.index(top_card.rank)
-    valid_ranks = rank_order[:top_rank_index]
-    return valid_ranks
+class Foundation(Container):
+    def __init__(self, suit, x, y):
+        super().__init__(x, y)
+        self.suit = suit
+
+    def is_valid_card(self, card: Card) -> bool:
+        """Returns True if given cards is valid for this foundation else False"""
+        if not self.cards:
+            return card.suit == self.suit and card.rank == 'A'
+        top_card = self.cards[-1]
+        return card.suit == self.suit and rank_order.index(card.rank) + 1 == rank_order.index(top_card.rank)
+
+    def append_card(self, card):
+        card.static_cords = self.rect.topleft
+        self.cards.append(card)
+
+
+class Pile(Container):
+    def __init__(self, x, y):
+        super().__init__(x, y)
+
+    def is_valid_card(self, card: Card) -> bool:
+        """Returns True if given cards is valid for this pile else False"""
+        if not self.cards:
+            return True
+        top_card = self.cards[-1]
+        return rank_order.index(top_card.rank) == rank_order.index(card.rank) - 1 and \
+            colors_by_suits[top_card.suit] != colors_by_suits[card.suit]
+
+    def append_card(self, card):
+        card.static_cords = self.collision_rect.topleft[0], self.collision_rect.topleft[1] + BETWEEN_CARDS
+        self.cards.append(card)
+        self.collision_rect = card.rect
 
 
 def create_game():
@@ -81,9 +94,12 @@ def create_game():
     for i in range(NUM_PILES):
         for j in range(i + 1):
             card = deck.pop()
-            card.rect.topleft = (piles[i].rect.x, piles[i].rect.y + j * 20)
-            card.face_up = (j == i)  # Только верхняя карта перевернута лицом вверх
+            card.rect.topleft = (piles[i].rect.x, piles[i].rect.y + j * BETWEEN_CARDS)
+            card.static_cords = card.rect.topleft
+            if i == j:
+                card.change_face_state()
             piles[i].cards.append(card)
+            piles[i].collision_rect.topleft = card.rect.topleft
 
     foundations = [Foundation(suit, 700, 50 + i * (CARD_HEIGHT + 10)) for i, suit in enumerate(suits)]
     return deck, piles, foundations
@@ -91,7 +107,8 @@ def create_game():
 
 def main():
     deck, piles, foundations = create_game()
-    all_sprites = pygame.sprite.Group()
+    containers = piles + foundations
+    all_sprites = pygame.sprite.Group()  # TODO: draw sprites in needed order
     for pile in piles:
         all_sprites.add(*pile.cards)
     for foundation in foundations:
@@ -108,41 +125,38 @@ def main():
                 running = False
 
             if event.type == pygame.MOUSEBUTTONDOWN:
-                pos = pygame.mouse.get_pos()
-                for card in all_sprites:
-                    if isinstance(card, Card) and card.rect.collidepoint(pos) and card.face_up:
-                        dragging_card = card
-                        dragging_offset = (card.rect.x - pos[0], card.rect.y - pos[1])
-                        for pile in piles:
-                            if card in pile.cards:
-                                source_pile = pile
-                                break
+                mouse_pos = pygame.mouse.get_pos()
+                for container in containers:
+                    if dragging_card:
                         break
+                    for card in container.cards[::-1]:
+                        if card.rect.collidepoint(mouse_pos) and card.face_up:
+                            dragging_card = card
+                            dragging_offset = (card.rect.x - mouse_pos[0], card.rect.y - mouse_pos[1])
+                            if isinstance(container, Pile):
+                                source_pile = container
+                                break
 
             if event.type == pygame.MOUSEBUTTONUP:
-                if dragging_card:
-                    x, y = pygame.mouse.get_pos()
-                    target = None
-                    for t in foundations + piles:
-                        if t.rect.collidepoint(x, y):
-                            target = t
-                            break
-                    if target and dragging_card.is_valid_move(target):
-                        if isinstance(target, Foundation):
-                            if not target.cards or dragging_card.rank == 'A' or \
-                                    (target.cards[-1].suit == dragging_card.suit and
-                                     ranks.index(dragging_card.rank) == ranks.index(target.cards[-1].rank) + 1):
-                                target.cards.append(dragging_card)
-                        elif isinstance(target, Pile):
-                            if not target.cards or \
-                                    (target.cards[-1].rank in valid_moves_pile(dragging_card, target) and
-                                     target.cards[-1].suit != dragging_card.suit):
-                                target.cards.append(dragging_card)
-                        if source_pile:
-                            source_pile.cards.remove(dragging_card)
-                        dragging_card.rect.topleft = target.rect.topleft
-                    dragging_card = None
-                    source_pile = None
+                if not dragging_card:
+                    continue
+                # x, y = pygame.mouse.get_pos() ???
+                target = None
+                for container in containers:
+                    if container.collision_rect.colliderect(container.collision_rect) and \
+                            container.is_valid_card(dragging_card):  # TODO: if card is valid and collides multiple
+                        # TODO: containers it is put to the left container, but not to container player ment to put it
+
+                        # TODO: there are some other bugs with multiple valid, discover them
+                        target = container
+                        break
+                if target:
+                    target.append_card(dragging_card)
+                    if source_pile:
+                        source_pile.cards.remove(dragging_card)
+                dragging_card.rect.x, dragging_card.rect.y = dragging_card.static_cords
+                dragging_card = None
+                source_pile = None
 
             if event.type == pygame.MOUSEMOTION:
                 if dragging_card:
