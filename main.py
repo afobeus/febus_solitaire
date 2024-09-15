@@ -9,6 +9,7 @@ NUM_FOUNDATIONS = 4
 NUM_PILES = 7
 ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
 suits = ['hearts', 'diamonds', 'clubs', 'spades']
+rank_order = ['K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2', 'A']
 
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -66,7 +67,6 @@ class Pile(pygame.sprite.Sprite):
 
 
 def valid_moves_pile(card, pile):
-    rank_order = ['K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2', 'A']
     if not pile.cards:
         return []
     top_card = pile.cards[-1]
@@ -76,8 +76,6 @@ def valid_moves_pile(card, pile):
 
 
 def create_game():
-    suits = ['hearts', 'diamonds', 'clubs', 'spades']
-    ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
     deck = [Card(suit, rank) for suit in suits for rank in ranks]
     random.shuffle(deck)
 
