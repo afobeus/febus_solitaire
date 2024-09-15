@@ -2,29 +2,25 @@ import pygame
 import random
 import os
 
-# Константы
 WIDTH, HEIGHT = 800, 600
 CARD_WIDTH, CARD_HEIGHT = 72, 96
-FPS = 30
+FPS = 60
 NUM_FOUNDATIONS = 4
 NUM_PILES = 7
+ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+suits = ['hearts', 'diamonds', 'clubs', 'spades']
 
-# Инициализация Pygame
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption('Solitaire Klondike')
 clock = pygame.time.Clock()
 
 
-# Загрузка карт
 def load_cards():
-    suits = ['hearts', 'diamonds', 'clubs', 'spades']
-    ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
     # return [f'{rank}_of_{suit}.png' for suit in suits for rank in ranks]
     return [f'card.png' for suit in suits for rank in ranks]
 
 
-# Класс для карт
 class Card(pygame.sprite.Sprite):
     def __init__(self, suit, rank):
         super().__init__()
@@ -34,17 +30,18 @@ class Card(pygame.sprite.Sprite):
         self.image = pygame.image.load(os.path.join('cards', f'card.png'))
         self.image = pygame.transform.scale(self.image, (CARD_WIDTH, CARD_HEIGHT))
         self.rect = self.image.get_rect()
-        self.rect.topleft = (0, 0)
+        # self.rect.topleft = (0, 0)
         self.face_up = True
 
     def is_valid_move(self, target):
         if not target:
             return False
         if isinstance(target, Foundation):
-            return self.rank == 'A' if not target.cards else \
-                self.suit == target.cards[-1].suit and \
+            if not target.cards:
+                return self.rank == 'A'
+            return self.suit == target.cards[-1].suit and \
                 self.rank == ranks[ranks.index(target.cards[-1].rank) + 1]
-        elif isinstance(target, Pile):
+        elif isinstance(target, Pile):  # TODO: no color checking
             return self.rank in valid_moves_pile(self, target)
         return False
 
@@ -68,7 +65,6 @@ class Pile(pygame.sprite.Sprite):
         self.image.fill((255, 255, 255))  # Белый фон для области колоды
 
 
-# Проверка допустимых перемещений в колонках
 def valid_moves_pile(card, pile):
     rank_order = ['K', 'Q', 'J', '10', '9', '8', '7', '6', '5', '4', '3', '2', 'A']
     if not pile.cards:
@@ -79,7 +75,6 @@ def valid_moves_pile(card, pile):
     return valid_ranks
 
 
-# Функция для создания начальной раскладки карт
 def create_game():
     suits = ['hearts', 'diamonds', 'clubs', 'spades']
     ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
@@ -98,11 +93,7 @@ def create_game():
     return deck, piles, foundations
 
 
-# Основной цикл игры
 def main():
-    global ranks
-    ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
-
     deck, piles, foundations = create_game()
     all_sprites = pygame.sprite.Group()
     for pile in piles:
