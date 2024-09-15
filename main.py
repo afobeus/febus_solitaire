@@ -67,6 +67,9 @@ class Foundation(Container):
         card.static_cords = self.rect.topleft
         self.cards.append(card)
 
+    def remove_card(self):
+        pass
+
 
 class Pile(Container):
     def __init__(self, x, y):
@@ -84,6 +87,11 @@ class Pile(Container):
         card.static_cords = self.collision_rect.topleft[0], self.collision_rect.topleft[1] + BETWEEN_CARDS
         self.cards.append(card)
         self.collision_rect = card.rect
+
+    def remove_card(self):
+        self.cards.pop()
+        if self.cards and not self.cards[-1].face_up:
+            self.cards[-1].change_face_state()
 
 
 def create_game():
@@ -155,7 +163,7 @@ def main():
                     all_sprites.remove(dragging_card)
                     all_sprites.add(dragging_card)
                     if source_pile:
-                        source_pile.cards.remove(dragging_card)
+                        source_pile.remove_card()
                 dragging_card.rect.x, dragging_card.rect.y = dragging_card.static_cords
                 dragging_card = None
                 source_pile = None
