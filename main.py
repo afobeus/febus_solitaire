@@ -152,6 +152,8 @@ def main():
                         break
                 if target:
                     target.append_card(dragging_card)
+                    all_sprites.remove(dragging_card)
+                    all_sprites.add(dragging_card)
                     if source_pile:
                         source_pile.cards.remove(dragging_card)
                 dragging_card.rect.x, dragging_card.rect.y = dragging_card.static_cords
