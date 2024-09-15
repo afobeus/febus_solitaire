@@ -18,8 +18,7 @@ clock = pygame.time.Clock()
 
 
 def load_cards():
-    # return [f'{rank}_of_{suit}.png' for suit in suits for rank in ranks]
-    return [f'card.png' for suit in suits for rank in ranks]
+    return [f'{rank}_of_{suit}.png' for suit in suits for rank in ranks]
 
 
 class Card(pygame.sprite.Sprite):
@@ -27,8 +26,7 @@ class Card(pygame.sprite.Sprite):
         super().__init__()
         self.suit = suit
         self.rank = rank
-        # self.image = pygame.image.load(os.path.join('cards', f'{rank}_of_{suit}.png'))
-        self.image = pygame.image.load(os.path.join('cards', f'card.png'))
+        self.image = pygame.image.load(os.path.join('cards', f'{rank}_of_{suit}.png'))
         self.image = pygame.transform.scale(self.image, (CARD_WIDTH, CARD_HEIGHT))
         self.rect = self.image.get_rect()
         # self.rect.topleft = (0, 0)
