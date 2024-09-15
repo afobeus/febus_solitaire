@@ -2,9 +2,9 @@ import pygame
 import random
 import os
 
-WIDTH, HEIGHT = 800, 600
-CARD_WIDTH, CARD_HEIGHT = 72, 96
-BETWEEN_CARDS = 20
+WIDTH, HEIGHT = 1200, 800
+CARD_WIDTH, CARD_HEIGHT = 105, 140
+BETWEEN_CARDS = 25
 FPS = 60
 NUM_FOUNDATIONS = 4
 NUM_PILES = 7
@@ -101,7 +101,7 @@ def create_game():
             piles[i].cards.append(card)
             piles[i].collision_rect.topleft = card.rect.topleft
 
-    foundations = [Foundation(suit, 700, 50 + i * (CARD_HEIGHT + 10)) for i, suit in enumerate(suits)]
+    foundations = [Foundation(suit, WIDTH - CARD_WIDTH, 50 + i * (CARD_HEIGHT + 10)) for i, suit in enumerate(suits)]
     return deck, piles, foundations
 
 
