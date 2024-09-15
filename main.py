@@ -141,6 +141,8 @@ def main():
                         if card.rect.collidepoint(mouse_pos) and card.face_up:
                             dragging_card = card
                             dragging_offset = (card.rect.x - mouse_pos[0], card.rect.y - mouse_pos[1])
+                            all_sprites.remove(dragging_card)
+                            all_sprites.add(dragging_card)
                             if isinstance(container, Pile):
                                 source_pile = container
                                 break
@@ -160,8 +162,6 @@ def main():
                         break
                 if target:
                     target.append_card(dragging_card)
-                    all_sprites.remove(dragging_card)
-                    all_sprites.add(dragging_card)
                     if source_pile:
                         source_pile.remove_card()
                 dragging_card.rect.x, dragging_card.rect.y = dragging_card.static_cords
