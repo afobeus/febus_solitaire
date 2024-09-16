@@ -125,11 +125,11 @@ class CardsGroup:
 
 
 def create_game():
-    # deck = [Card(suit, rank) for suit in suits for rank in ranks]
-    deck = [Card("hearts", 'A'), Card("clubs", "3"), Card("hearts", '2'), Card("hearts", '3'), Card("hearts", '4'),
-            Card("clubs", '2')]
+    deck = [Card(suit, rank) for suit in suits for rank in ranks]
+    # deck = [Card("hearts", 'A'), Card("clubs", "3"), Card("hearts", '2'), Card("hearts", '3'), Card("hearts", '4'),
+    #        Card("clubs", '2')]
     deck.reverse()
-    #random.shuffle(deck)
+    random.shuffle(deck)
 
     piles = [Pile(50 + i * (CARD_WIDTH + 10), 50) for i in range(NUM_PILES)]
     for i in range(NUM_PILES):
