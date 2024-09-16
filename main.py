@@ -78,7 +78,7 @@ class Pile(Container):
     def is_valid_card(self, card: Card) -> bool:
         """Returns True if given cards is valid for this pile else False"""
         if not self.cards:
-            return True
+            return card.rank == 'K'
         top_card = self.cards[-1]
         return rank_order.index(top_card.rank) == rank_order.index(card.rank) - 1 and \
             colors_by_suits[top_card.suit] != colors_by_suits[card.suit]
@@ -173,7 +173,7 @@ def main():
                     dragging_card.rect.x = event.pos[0] + dragging_offset[0]
                     dragging_card.rect.y = event.pos[1] + dragging_offset[1]
 
-        screen.fill((0, 128, 0))  # Цвет фона
+        screen.fill((0, 128, 0))  # background color
         all_sprites.draw(screen)
         pygame.display.flip()
         clock.tick(FPS)
