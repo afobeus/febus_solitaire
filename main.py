@@ -63,8 +63,11 @@ class Foundation(Container):
         top_card = self.cards[-1]
         return card.suit == self.suit and rank_order.index(card.rank) + 1 == rank_order.index(top_card.rank)
 
+    def get_new_card_pos(self):
+        return self.rect.topleft
+
     def append_card(self, card):
-        card.static_cords = self.rect.topleft
+        card.static_cords = self.get_new_card_pos()
         self.cards.append(card)
 
     def remove_card(self):
@@ -83,8 +86,11 @@ class Pile(Container):
         return rank_order.index(top_card.rank) == rank_order.index(card.rank) - 1 and \
             colors_by_suits[top_card.suit] != colors_by_suits[card.suit]
 
+    def get_new_card_pos(self):
+        return self.rect.topleft[0], self.rect.topleft[1] + BETWEEN_CARDS * len(self.cards)
+
     def append_card(self, card):
-        card.static_cords = self.collision_rect.topleft[0], self.collision_rect.topleft[1] + BETWEEN_CARDS
+        card.static_cords = self.get_new_card_pos()
         self.cards.append(card)
         self.collision_rect = card.rect
 
@@ -92,6 +98,7 @@ class Pile(Container):
         self.cards.pop()
         if self.cards and not self.cards[-1].face_up:
             self.cards[-1].change_face_state()
+        self.collision_rect.topleft = self.get_new_card_pos()
 
 
 def create_game():
@@ -153,7 +160,7 @@ def main():
                 # x, y = pygame.mouse.get_pos() ???
                 target = None
                 for container in containers:
-                    if container.collision_rect.colliderect(container.collision_rect) and \
+                    if container.collision_rect.colliderect(dragging_card.rect) and \
                             container.is_valid_card(dragging_card):  # TODO: if card is valid and collides multiple
                         # TODO: containers it is put to the left container, but not to container player ment to put it
 
