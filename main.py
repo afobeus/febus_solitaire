@@ -101,6 +101,22 @@ class Pile(Container):
         self.collision_rect.topleft = self.get_new_card_pos()
 
 
+class CardsGroup:  # TODO: make CardsGroup code unification: one card should be a group, consisting of one card
+    def __init__(self, cards):
+        self.cards = cards
+        self.static_cords = self.cards[0].rect.topleft
+
+    def update_view(self, event_pos, dragging_offset):
+        for index, card in enumerate(self.cards):
+            card.rect.x = event_pos[0] + dragging_offset[0]
+            card.rect.y = event_pos[1] + dragging_offset[1] + BETWEEN_CARDS * index
+
+    def reset_pos(self):
+        for index, card in enumerate(self.cards):
+            card.rect.x = self.static_cords[0]
+            card.rect.y = self.static_cords[1] + BETWEEN_CARDS * index
+
+
 def create_game():
     deck = [Card(suit, rank) for suit in suits for rank in ranks]
     random.shuffle(deck)
@@ -123,13 +139,14 @@ def create_game():
 def main():
     deck, piles, foundations = create_game()
     containers = piles + foundations
-    all_sprites = pygame.sprite.Group()  # TODO: draw sprites in needed order
+    all_sprites = pygame.sprite.Group()
     for pile in piles:
         all_sprites.add(*pile.cards)
     for foundation in foundations:
         all_sprites.add(foundation)
 
     dragging_card = None
+    dragging_group = None
     dragging_offset = (0, 0)
     source_pile = None
 
@@ -144,20 +161,22 @@ def main():
                 for container in containers:
                     if dragging_card:
                         break
-                    for card in container.cards[::-1]:
+                    for index, card in enumerate(container.cards[::-1]):
                         if card.rect.collidepoint(mouse_pos) and card.face_up:
-                            dragging_card = card
                             dragging_offset = (card.rect.x - mouse_pos[0], card.rect.y - mouse_pos[1])
-                            all_sprites.remove(dragging_card)
-                            all_sprites.add(dragging_card)
+                            for c in container.cards[len(container.cards) - index - 1:]:
+                                all_sprites.remove(c)
+                                all_sprites.add(c)
+                            dragging_card = card
+                            if index > 0:
+                                dragging_group = CardsGroup(container.cards[len(container.cards) - index - 1:])
                             if isinstance(container, Pile):
                                 source_pile = container
                                 break
 
             if event.type == pygame.MOUSEBUTTONUP:
-                if not dragging_card:
+                if not dragging_card and not dragging_group:
                     continue
-                # x, y = pygame.mouse.get_pos() ???
                 target = None
                 for container in containers:
                     if container.collision_rect.colliderect(dragging_card.rect) and \
@@ -168,17 +187,28 @@ def main():
                         target = container
                         break
                 if target:
-                    target.append_card(dragging_card)
-                    if source_pile:
-                        source_pile.remove_card()
+                    if dragging_card:
+                        target.append_card(dragging_card)
+                        if source_pile:
+                            source_pile.remove_card()
+                    else:
+                        for card in dragging_group.cards:
+                            target.append_card(card)
+                            if source_pile:
+                                source_pile.remove_card()
                 dragging_card.rect.x, dragging_card.rect.y = dragging_card.static_cords
+                if dragging_group:
+                    dragging_group.reset_pos()
                 dragging_card = None
+                dragging_group = None
                 source_pile = None
 
             if event.type == pygame.MOUSEMOTION:
                 if dragging_card:
                     dragging_card.rect.x = event.pos[0] + dragging_offset[0]
                     dragging_card.rect.y = event.pos[1] + dragging_offset[1]
+                if dragging_group:
+                    dragging_group.update_view(event.pos, dragging_offset)
 
         screen.fill((0, 128, 0))  # background color
         all_sprites.draw(screen)
