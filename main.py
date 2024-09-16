@@ -4,7 +4,8 @@ import os
 
 WIDTH, HEIGHT = 1200, 800
 CARD_WIDTH, CARD_HEIGHT = 105, 140
-BETWEEN_CARDS = 25
+BETWEEN_CARDS = 20
+BORDER = 30
 FPS = 60
 NUM_FOUNDATIONS = 4
 NUM_PILES = 7
@@ -124,19 +125,49 @@ class CardsGroup:
         return self.cards[0]
 
 
-def create_game():
-    deck = [Card(suit, rank) for suit in suits for rank in ranks]
-    # deck = [Card("hearts", 'A'), Card("clubs", "3"), Card("hearts", '2'), Card("hearts", '3'), Card("hearts", '4'),
-    #        Card("clubs", '2')]
-    deck.reverse()
-    random.shuffle(deck)
+class Deck(pygame.sprite.Sprite):
+    def __init__(self, x, y, cards):
+        super().__init__()
+        self.cards = cards
+        self.next_card_index = 0
+        self.rect = pygame.Rect(x, y, CARD_WIDTH, CARD_HEIGHT)
+        self.image = pygame.image.load(os.path.join('cards', f'closed_card.png'))
+        self.image = pygame.transform.scale(self.image, (CARD_WIDTH, CARD_HEIGHT))
 
-    piles = [Pile(50 + i * (CARD_WIDTH + 10), 50) for i in range(NUM_PILES)]
+    def get_next_card(self):
+        card = self.cards[self.next_card_index]
+        self.next_card_index = (self.next_card_index + 1) % len(self.cards)
+        return card
+
+
+class Layout(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.rect = pygame.Rect(x - CARD_WIDTH - BETWEEN_CARDS, y, CARD_WIDTH, CARD_HEIGHT)
+        self.cur_card = None
+        self.image = pygame.Surface((CARD_WIDTH, CARD_HEIGHT))
+        self.image.fill((210, 210, 210))
+
+    def change_card(self, card):
+        self.cur_card = card
+        self.cur_card.rect = self.rect
+        self.cur_card.static_cords = self.rect.topleft
+        self.image = self.cur_card.image
+
+
+def create_game():
+    all_cards = [Card(suit, rank) for suit in suits for rank in ranks]
+    # all_cards = [Card("hearts", 'A'), Card("clubs", "3"), Card("hearts", '2'), Card("hearts", '3'),
+    # Card("hearts", '4'), Card("clubs", '2')]
+    all_cards.reverse()
+    random.shuffle(all_cards)
+
+    piles = [Pile(BORDER + i * (CARD_WIDTH + 10), BORDER) for i in range(NUM_PILES)]
     for i in range(NUM_PILES):
         for j in range(i + 1):
-            if not deck:
+            if not all_cards:
                 break
-            card = deck.pop()
+            card = all_cards.pop()
             card.rect.topleft = (piles[i].rect.x, piles[i].rect.y + j * BETWEEN_CARDS)
             card.static_cords = card.rect.topleft
             if i == j:
@@ -144,19 +175,28 @@ def create_game():
             piles[i].cards.append(card)
             piles[i].collision_rect.topleft = card.rect.topleft
 
-    foundations = [Foundation(suit, WIDTH - CARD_WIDTH - 50, 50 + i * (CARD_HEIGHT + 10))
+    foundations = [Foundation(suit, WIDTH - CARD_WIDTH - BORDER, BORDER + CARD_HEIGHT + BETWEEN_CARDS +
+                              i * (CARD_HEIGHT + 10))
                    for i, suit in enumerate(suits)]
-    return deck, piles, foundations
+
+    for card in all_cards:
+        card.change_face_state()
+    deck = Deck(WIDTH - CARD_WIDTH - BORDER, BORDER, all_cards)
+    layout = Layout(WIDTH - CARD_WIDTH - BORDER, BORDER)
+
+    return all_cards, piles, foundations, deck, layout
 
 
 def main():
-    deck, piles, foundations = create_game()
+    deck, piles, foundations, deck, layout = create_game()
     containers = piles + foundations
     all_sprites = pygame.sprite.Group()
     for pile in piles:
         all_sprites.add(*pile.cards)
     for foundation in foundations:
         all_sprites.add(foundation)
+    all_sprites.add(deck)
+    all_sprites.add(layout)
 
     dragging_group = None
     dragging_offset = (0, 0)
@@ -170,6 +210,17 @@ def main():
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
+                if deck.rect.collidepoint(mouse_pos):
+                    next_card = deck.get_next_card()
+                    layout.change_card(next_card)
+                    continue
+                if layout.rect.collidepoint(mouse_pos):
+                    dragging_offset = (layout.cur_card.rect.x - mouse_pos[0], layout.cur_card.rect.y - mouse_pos[1])
+                    all_sprites.remove(layout.cur_card)
+                    all_sprites.add(layout.cur_card)
+                    dragging_group = CardsGroup([layout.cur_card])
+                    source_container = layout
+                    continue
                 for container in containers:
                     if dragging_group:
                         break
