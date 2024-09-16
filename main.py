@@ -71,8 +71,9 @@ class Foundation(Container):
         card.static_cords = self.get_new_card_pos()
         self.cards.append(card)
 
-    def remove_card(self):
-        pass
+    def remove_cards(self, count):
+        for i in range(min(count, len(self.cards))):
+            self.cards.pop()
 
 
 class Pile(Container):
@@ -124,12 +125,17 @@ class CardsGroup:
 
 
 def create_game():
-    deck = [Card(suit, rank) for suit in suits for rank in ranks]
-    random.shuffle(deck)
+    # deck = [Card(suit, rank) for suit in suits for rank in ranks]
+    deck = [Card("hearts", 'A'), Card("clubs", "3"), Card("hearts", '2'), Card("hearts", '3'), Card("hearts", '4'),
+            Card("clubs", '2')]
+    deck.reverse()
+    #random.shuffle(deck)
 
     piles = [Pile(50 + i * (CARD_WIDTH + 10), 50) for i in range(NUM_PILES)]
     for i in range(NUM_PILES):
         for j in range(i + 1):
+            if not deck:
+                break
             card = deck.pop()
             card.rect.topleft = (piles[i].rect.x, piles[i].rect.y + j * BETWEEN_CARDS)
             card.static_cords = card.rect.topleft
@@ -138,7 +144,8 @@ def create_game():
             piles[i].cards.append(card)
             piles[i].collision_rect.topleft = card.rect.topleft
 
-    foundations = [Foundation(suit, WIDTH - CARD_WIDTH, 50 + i * (CARD_HEIGHT + 10)) for i, suit in enumerate(suits)]
+    foundations = [Foundation(suit, WIDTH - CARD_WIDTH - 50, 50 + i * (CARD_HEIGHT + 10))
+                   for i, suit in enumerate(suits)]
     return deck, piles, foundations
 
 
@@ -153,7 +160,7 @@ def main():
 
     dragging_group = None
     dragging_offset = (0, 0)
-    source_pile = None
+    source_container = None
 
     running = True
     while running:
@@ -173,9 +180,8 @@ def main():
                                 all_sprites.remove(c)
                                 all_sprites.add(c)
                             dragging_group = CardsGroup(container.cards[len(container.cards) - index - 1:])
-                            if isinstance(container, Pile):
-                                source_pile = container
-                                break
+                            source_container = container
+                            break
 
             if event.type == pygame.MOUSEBUTTONUP:
                 if not dragging_group:
@@ -193,11 +199,11 @@ def main():
                     if isinstance(target, Foundation) and len(dragging_group.cards) > 1:
                         continue
                     target.append_cards(dragging_group.cards)
-                    if source_pile:
-                        source_pile.remove_cards(len(dragging_group.cards))
+                    if source_container:
+                        source_container.remove_cards(len(dragging_group.cards))
                 dragging_group.reset_pos()
                 dragging_group = None
-                source_pile = None
+                source_container = None
 
             if event.type == pygame.MOUSEMOTION:
                 if dragging_group:
