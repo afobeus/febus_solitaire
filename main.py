@@ -66,7 +66,8 @@ class Foundation(Container):
     def get_new_card_pos(self):
         return self.rect.topleft
 
-    def append_card(self, card):
+    def append_cards(self, cards):
+        card = cards[0]
         card.static_cords = self.get_new_card_pos()
         self.cards.append(card)
 
@@ -89,22 +90,25 @@ class Pile(Container):
     def get_new_card_pos(self):
         return self.rect.topleft[0], self.rect.topleft[1] + BETWEEN_CARDS * len(self.cards)
 
-    def append_card(self, card):
-        card.static_cords = self.get_new_card_pos()
-        self.cards.append(card)
-        self.collision_rect = card.rect
+    def append_cards(self, cards):
+        for card in cards:
+            card.static_cords = self.get_new_card_pos()
+            self.cards.append(card)
+            self.collision_rect.topleft = card.static_cords
 
-    def remove_card(self):
-        self.cards.pop()
-        if self.cards and not self.cards[-1].face_up:
-            self.cards[-1].change_face_state()
-        self.collision_rect.topleft = self.get_new_card_pos()
+    def remove_cards(self, count):
+        for i in range(min(count, len(self.cards))):
+            self.cards.pop()
+            if self.cards and not self.cards[-1].face_up:
+                self.cards[-1].change_face_state()
+            self.collision_rect.topleft = self.get_new_card_pos()
 
 
-class CardsGroup:  # TODO: make CardsGroup code unification: one card should be a group, consisting of one card
+class CardsGroup:
     def __init__(self, cards):
         self.cards = cards
         self.static_cords = self.cards[0].rect.topleft
+        self.base_rect = self.cards[0].rect
 
     def update_view(self, event_pos, dragging_offset):
         for index, card in enumerate(self.cards):
@@ -112,9 +116,11 @@ class CardsGroup:  # TODO: make CardsGroup code unification: one card should be 
             card.rect.y = event_pos[1] + dragging_offset[1] + BETWEEN_CARDS * index
 
     def reset_pos(self):
-        for index, card in enumerate(self.cards):
-            card.rect.x = self.static_cords[0]
-            card.rect.y = self.static_cords[1] + BETWEEN_CARDS * index
+        for card in self.cards:
+            card.rect.topleft = card.static_cords
+
+    def top_card(self):
+        return self.cards[0]
 
 
 def create_game():
@@ -145,7 +151,6 @@ def main():
     for foundation in foundations:
         all_sprites.add(foundation)
 
-    dragging_card = None
     dragging_group = None
     dragging_offset = (0, 0)
     source_pile = None
@@ -159,7 +164,7 @@ def main():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
                 for container in containers:
-                    if dragging_card:
+                    if dragging_group:
                         break
                     for index, card in enumerate(container.cards[::-1]):
                         if card.rect.collidepoint(mouse_pos) and card.face_up:
@@ -167,46 +172,34 @@ def main():
                             for c in container.cards[len(container.cards) - index - 1:]:
                                 all_sprites.remove(c)
                                 all_sprites.add(c)
-                            dragging_card = card
-                            if index > 0:
-                                dragging_group = CardsGroup(container.cards[len(container.cards) - index - 1:])
+                            dragging_group = CardsGroup(container.cards[len(container.cards) - index - 1:])
                             if isinstance(container, Pile):
                                 source_pile = container
                                 break
 
             if event.type == pygame.MOUSEBUTTONUP:
-                if not dragging_card and not dragging_group:
+                if not dragging_group:
                     continue
                 target = None
                 for container in containers:
-                    if container.collision_rect.colliderect(dragging_card.rect) and \
-                            container.is_valid_card(dragging_card):  # TODO: if card is valid and collides multiple
+                    if container.collision_rect.colliderect(dragging_group.base_rect) and \
+                            container.is_valid_card(dragging_group.top_card()):  # TODO: if card is valid and collides multiple
                         # TODO: containers it is put to the left container, but not to container player ment to put it
 
                         # TODO: there are some other bugs with multiple valid, discover them
                         target = container
                         break
                 if target:
-                    if dragging_card:
-                        target.append_card(dragging_card)
-                        if source_pile:
-                            source_pile.remove_card()
-                    else:
-                        for card in dragging_group.cards:
-                            target.append_card(card)
-                            if source_pile:
-                                source_pile.remove_card()
-                dragging_card.rect.x, dragging_card.rect.y = dragging_card.static_cords
-                if dragging_group:
-                    dragging_group.reset_pos()
-                dragging_card = None
+                    if isinstance(target, Foundation) and len(dragging_group.cards) > 1:
+                        continue
+                    target.append_cards(dragging_group.cards)
+                    if source_pile:
+                        source_pile.remove_cards(len(dragging_group.cards))
+                dragging_group.reset_pos()
                 dragging_group = None
                 source_pile = None
 
             if event.type == pygame.MOUSEMOTION:
-                if dragging_card:
-                    dragging_card.rect.x = event.pos[0] + dragging_offset[0]
-                    dragging_card.rect.y = event.pos[1] + dragging_offset[1]
                 if dragging_group:
                     dragging_group.update_view(event.pos, dragging_offset)
 
