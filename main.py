@@ -224,6 +224,8 @@ def main():
                 if deck.rect.collidepoint(mouse_pos):
                     next_card = deck.get_next_card()
                     layout.change_card(next_card)
+                    all_sprites.remove(next_card)
+                    all_sprites.add(next_card)
                     continue
                 if layout.rect.collidepoint(mouse_pos):
                     dragging_offset = (layout.cur_card.rect.x - mouse_pos[0], layout.cur_card.rect.y - mouse_pos[1])
