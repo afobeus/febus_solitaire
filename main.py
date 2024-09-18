@@ -129,15 +129,19 @@ class Deck(pygame.sprite.Sprite):
     def __init__(self, x, y, cards):
         super().__init__()
         self.cards = cards
-        self.next_card_index = 0
+        self.cur_card_index = -1
         self.rect = pygame.Rect(x, y, CARD_WIDTH, CARD_HEIGHT)
         self.image = pygame.image.load(os.path.join('cards', f'closed_card.png'))
         self.image = pygame.transform.scale(self.image, (CARD_WIDTH, CARD_HEIGHT))
 
     def get_next_card(self):
-        card = self.cards[self.next_card_index]
-        self.next_card_index = (self.next_card_index + 1) % len(self.cards)
+        self.cur_card_index = (self.cur_card_index + 1) % len(self.cards)
+        card = self.cards[self.cur_card_index]
         return card
+
+    def remove_cards(self, count):
+        self.cards.pop(self.cur_card_index)
+        self.cur_card_index %= len(self.cards)
 
 
 class Layout(pygame.sprite.Sprite):
@@ -157,6 +161,7 @@ class Layout(pygame.sprite.Sprite):
 
 def create_game():
     all_cards = [Card(suit, rank) for suit in suits for rank in ranks]
+    # all_cards = []
     # all_cards = [Card("hearts", 'A'), Card("clubs", "3"), Card("hearts", '2'), Card("hearts", '3'),
     # Card("hearts", '4'), Card("clubs", '2')]
     all_cards.reverse()
@@ -195,6 +200,12 @@ def main():
         all_sprites.add(*pile.cards)
     for foundation in foundations:
         all_sprites.add(foundation)
+    layout_image = pygame.sprite.Sprite()
+    layout_image.rect = pygame.Rect(WIDTH - CARD_WIDTH - BORDER - CARD_WIDTH - BETWEEN_CARDS, BORDER,
+                                    CARD_WIDTH, CARD_HEIGHT)
+    layout_image.image = pygame.Surface((CARD_WIDTH, CARD_HEIGHT))
+    layout_image.image.fill((210, 210, 210))
+    all_sprites.add(layout_image)
     all_sprites.add(deck)
     all_sprites.add(layout)
 
@@ -219,7 +230,7 @@ def main():
                     all_sprites.remove(layout.cur_card)
                     all_sprites.add(layout.cur_card)
                     dragging_group = CardsGroup([layout.cur_card])
-                    source_container = layout
+                    source_container = deck
                     continue
                 for container in containers:
                     if dragging_group:
