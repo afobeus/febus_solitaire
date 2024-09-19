@@ -134,13 +134,15 @@ class Layout(pygame.sprite.Sprite):
         self.cards.append(card)
         card.rect.topleft = self.rect.topleft
         card.static_cords = self.rect.topleft
-        self.image = self.cards[-1].image
+        self.image = self.cards[-1].image.copy()
 
     def is_empty(self):
         return not self.cards
 
     def remove_card(self):
         self.cards.pop()
+        if not self.cards:
+            self.image.fill((210, 210, 210))
 
 
 class CardsGroup:
