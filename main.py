@@ -2,10 +2,12 @@ import pygame
 import random
 import os
 
+# Interface
 WIDTH, HEIGHT = 1200, 800
 CARD_WIDTH, CARD_HEIGHT = 105, 140
 BETWEEN_CARDS = 20
 BORDER = 30
+# Game consts
 FPS = 60
 NUM_FOUNDATIONS = 4
 NUM_PILES = 7
@@ -30,7 +32,6 @@ class Card(pygame.sprite.Sprite):
         self.face_down_image = pygame.transform.scale(self.face_down_image, (CARD_WIDTH, CARD_HEIGHT))
         self.image = self.face_down_image
         self.rect = self.image.get_rect()
-        # self.rect.topleft = (0, 0) ???
         self.static_cords = (0, 0)
         self.face_up = False
 
@@ -42,7 +43,7 @@ class Card(pygame.sprite.Sprite):
         self.face_up = not self.face_up
 
 
-class Container(pygame.sprite.Sprite):
+class Pile:
     def __init__(self, x, y):
         super().__init__()
         self.cards = []
@@ -50,36 +51,6 @@ class Container(pygame.sprite.Sprite):
         self.collision_rect = pygame.Rect(x, y, CARD_WIDTH, CARD_HEIGHT)
         self.image = pygame.Surface((CARD_WIDTH, CARD_HEIGHT))
         self.image.fill((255, 255, 255))
-
-
-class Foundation(Container):
-    def __init__(self, suit, x, y):
-        super().__init__(x, y)
-        self.suit = suit
-
-    def is_valid_card(self, card: Card) -> bool:
-        """Returns True if given cards is valid for this foundation else False"""
-        if not self.cards:
-            return card.suit == self.suit and card.rank == 'A'
-        top_card = self.cards[-1]
-        return card.suit == self.suit and rank_order.index(card.rank) + 1 == rank_order.index(top_card.rank)
-
-    def get_new_card_pos(self):
-        return self.rect.topleft
-
-    def append_cards(self, cards):
-        card = cards[0]
-        card.static_cords = self.get_new_card_pos()
-        self.cards.append(card)
-
-    def remove_cards(self, count):
-        for i in range(min(count, len(self.cards))):
-            self.cards.pop()
-
-
-class Pile(Container):
-    def __init__(self, x, y):
-        super().__init__(x, y)
 
     def is_valid_card(self, card: Card) -> bool:
         """Returns True if given cards is valid for this pile else False"""
@@ -92,8 +63,8 @@ class Pile(Container):
     def get_new_card_pos(self):
         return self.rect.topleft[0], self.rect.topleft[1] + BETWEEN_CARDS * len(self.cards)
 
-    def append_cards(self, cards):
-        for card in cards:
+    def append_group(self, group):
+        for card in group.cards:
             card.static_cords = self.get_new_card_pos()
             self.cards.append(card)
             self.collision_rect.topleft = card.static_cords
@@ -104,6 +75,72 @@ class Pile(Container):
             if self.cards and not self.cards[-1].face_up:
                 self.cards[-1].change_face_state()
             self.collision_rect.topleft = self.get_new_card_pos()
+
+
+class Foundation(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.cards = []
+        self.rect = pygame.Rect(x, y, CARD_WIDTH, CARD_HEIGHT)
+        self.collision_rect = pygame.Rect(x, y, CARD_WIDTH, CARD_HEIGHT)
+        self.image = pygame.Surface((CARD_WIDTH, CARD_HEIGHT))
+        self.image.fill((255, 255, 255))
+
+    def is_valid_card(self, card: Card) -> bool:
+        """Returns True if given cards is valid for this foundation else False"""
+        if not self.cards:
+            return card.rank == 'A'
+        top_card = self.cards[-1]
+        return card.suit == top_card.suit and rank_order.index(card.rank) + 1 == rank_order.index(top_card.rank)
+
+    def get_new_card_pos(self):
+        return self.rect.topleft
+
+    def append_card(self, card):
+        card.static_cords = self.get_new_card_pos()
+        self.cards.append(card)
+
+    def remove_card(self):
+        self.cards.pop()
+
+
+class Deck(pygame.sprite.Sprite):
+    def __init__(self, x, y, cards):
+        super().__init__()
+        self.cards = cards
+        self.rect = pygame.Rect(x, y, CARD_WIDTH, CARD_HEIGHT)
+        self.image = pygame.image.load(os.path.join('cards', f'closed_card.png'))
+        self.image = pygame.transform.scale(self.image, (CARD_WIDTH, CARD_HEIGHT))
+
+    def is_empty(self):
+        return not self.cards
+
+    def take_card(self):
+        return self.cards.pop()
+
+    def add_cards(self, cards):
+        self.cards.extend(cards)
+
+
+class Layout(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.cards = []
+        self.rect = pygame.Rect(x - CARD_WIDTH - BETWEEN_CARDS, y, CARD_WIDTH, CARD_HEIGHT)
+        self.image = pygame.Surface((CARD_WIDTH, CARD_HEIGHT))
+        self.image.fill((210, 210, 210))
+
+    def add_card(self, card):
+        self.cards.append(card)
+        card.rect.topleft = self.rect.topleft
+        card.static_cords = self.rect.topleft
+        self.image = self.cards[-1].image
+
+    def is_empty(self):
+        return not self.cards
+
+    def remove_card(self):
+        self.cards.pop()
 
 
 class CardsGroup:
@@ -125,46 +162,8 @@ class CardsGroup:
         return self.cards[0]
 
 
-class Deck(pygame.sprite.Sprite):
-    def __init__(self, x, y, cards):
-        super().__init__()
-        self.cards = cards
-        self.cur_card_index = -1
-        self.rect = pygame.Rect(x, y, CARD_WIDTH, CARD_HEIGHT)
-        self.image = pygame.image.load(os.path.join('cards', f'closed_card.png'))
-        self.image = pygame.transform.scale(self.image, (CARD_WIDTH, CARD_HEIGHT))
-
-    def get_next_card(self):
-        self.cur_card_index = (self.cur_card_index + 1) % len(self.cards)
-        card = self.cards[self.cur_card_index]
-        return card
-
-    def remove_cards(self, count):
-        self.cards.pop(self.cur_card_index)
-        self.cur_card_index %= len(self.cards)
-
-
-class Layout(pygame.sprite.Sprite):
-    def __init__(self, x, y):
-        super().__init__()
-        self.rect = pygame.Rect(x - CARD_WIDTH - BETWEEN_CARDS, y, CARD_WIDTH, CARD_HEIGHT)
-        self.cur_card = None
-        self.image = pygame.Surface((CARD_WIDTH, CARD_HEIGHT))
-        self.image.fill((210, 210, 210))
-
-    def change_card(self, card):
-        self.cur_card = card
-        self.cur_card.rect = self.rect
-        self.cur_card.static_cords = self.rect.topleft
-        self.image = self.cur_card.image
-
-
 def create_game():
     all_cards = [Card(suit, rank) for suit in suits for rank in ranks]
-    # all_cards = []
-    # all_cards = [Card("hearts", 'A'), Card("clubs", "3"), Card("hearts", '2'), Card("hearts", '3'),
-    # Card("hearts", '4'), Card("clubs", '2')]
-    all_cards.reverse()
     random.shuffle(all_cards)
 
     piles = [Pile(BORDER + i * (CARD_WIDTH + 10), BORDER) for i in range(NUM_PILES)]
@@ -180,7 +179,7 @@ def create_game():
             piles[i].cards.append(card)
             piles[i].collision_rect.topleft = card.rect.topleft
 
-    foundations = [Foundation(suit, WIDTH - CARD_WIDTH - BORDER, BORDER + CARD_HEIGHT + BETWEEN_CARDS +
+    foundations = [Foundation(WIDTH - CARD_WIDTH - BORDER, BORDER + CARD_HEIGHT + BETWEEN_CARDS +
                               i * (CARD_HEIGHT + 10))
                    for i, suit in enumerate(suits)]
 
@@ -221,18 +220,19 @@ def main():
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
-                if deck.rect.collidepoint(mouse_pos):
-                    next_card = deck.get_next_card()
-                    layout.change_card(next_card)
+                if deck.rect.collidepoint(mouse_pos) and not deck.is_empty():
+                    next_card = deck.take_card()
                     all_sprites.remove(next_card)
                     all_sprites.add(next_card)
+                    layout.add_card(next_card)
                     continue
-                if layout.rect.collidepoint(mouse_pos):
-                    dragging_offset = (layout.cur_card.rect.x - mouse_pos[0], layout.cur_card.rect.y - mouse_pos[1])
-                    all_sprites.remove(layout.cur_card)
-                    all_sprites.add(layout.cur_card)
-                    dragging_group = CardsGroup([layout.cur_card])
-                    source_container = deck
+                if layout.rect.collidepoint(mouse_pos) and not layout.is_empty():
+                    cur_card = layout.cards[-1]
+                    dragging_offset = (cur_card.rect.x - mouse_pos[0], cur_card.rect.y - mouse_pos[1])
+                    all_sprites.remove(cur_card)
+                    all_sprites.add(cur_card)
+                    dragging_group = CardsGroup([cur_card])
+                    source_container = layout
                     continue
                 for container in containers:
                     if dragging_group:
@@ -260,11 +260,17 @@ def main():
                         target = container
                         break
                 if target:
-                    if isinstance(target, Foundation) and len(dragging_group.cards) > 1:
-                        continue
-                    target.append_cards(dragging_group.cards)
-                    if source_container:
+                    if isinstance(target, Foundation) and len(dragging_group.cards) == 1:
+                        target.append_card(dragging_group.cards[0])
+                    if isinstance(target, Pile):
+                        target.append_group(dragging_group)
+
+                    if isinstance(source_container, Pile):
                         source_container.remove_cards(len(dragging_group.cards))
+                    if isinstance(source_container, Foundation):
+                        source_container.remove_card()
+                    if isinstance(source_container, Layout):
+                        source_container.remove_card()
                 dragging_group.reset_pos()
                 dragging_group = None
                 source_container = None
