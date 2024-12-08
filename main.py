@@ -22,6 +22,7 @@ pygame.display.set_caption('Febus Solitaire')
 clock = pygame.time.Clock()
 
 
+# pops
 class Card(pygame.sprite.Sprite):
     def __init__(self, suit, rank):
         super().__init__()
