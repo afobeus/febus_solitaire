@@ -5,7 +5,7 @@ import os
 # Interface
 WIDTH, HEIGHT = 1200, 800
 CARD_WIDTH, CARD_HEIGHT = 105, 140
-BETWEEN_CARDS = 20
+BETWEEN_CARDS = 25
 BORDER = 30
 # Game consts
 FPS = 60
@@ -110,17 +110,27 @@ class Deck(pygame.sprite.Sprite):
         super().__init__()
         self.cards = cards
         self.rect = pygame.Rect(x, y, CARD_WIDTH, CARD_HEIGHT)
-        self.image = pygame.image.load(os.path.join('cards', f'closed_card.png'))
-        self.image = pygame.transform.scale(self.image, (CARD_WIDTH, CARD_HEIGHT))
+        self.closed_card_image = pygame.image.load(os.path.join('cards', f'closed_card.png'))
+        self.closed_card_image = pygame.transform.scale(self.closed_card_image, (CARD_WIDTH, CARD_HEIGHT))
+        self.empty_image = pygame.Surface((CARD_WIDTH, CARD_HEIGHT))
+        self.empty_image.fill((0, 120, 0))
+        self.image = self.closed_card_image
 
     def is_empty(self):
         return not self.cards
 
     def take_card(self):
-        return self.cards.pop()
+        card = self.cards.pop()
+        if not self.cards:
+            self.image = self.empty_image
+        print("cards left in deck", len(self.cards))
+        return card
 
     def add_cards(self, cards):
         self.cards.extend(cards)
+        for card in cards:
+            card.rect.topleft = (WIDTH, HEIGHT)
+        self.image = self.closed_card_image
 
 
 class Layout(pygame.sprite.Sprite):
@@ -135,7 +145,6 @@ class Layout(pygame.sprite.Sprite):
         self.cards.append(card)
         card.rect.topleft = self.rect.topleft
         card.static_cords = self.rect.topleft
-        self.image = self.cards[-1].image.copy()
 
     def is_empty(self):
         return not self.cards
@@ -144,6 +153,9 @@ class Layout(pygame.sprite.Sprite):
         self.cards.pop()
         if not self.cards:
             self.image.fill((210, 210, 210))
+
+    def clear(self):
+        self.cards.clear()
 
 
 class CardsGroup:
@@ -223,11 +235,15 @@ def main():
 
             if event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
-                if deck.rect.collidepoint(mouse_pos) and not deck.is_empty():
-                    next_card = deck.take_card()
-                    all_sprites.remove(next_card)
-                    all_sprites.add(next_card)
-                    layout.add_card(next_card)
+                if deck.rect.collidepoint(mouse_pos):
+                    if not deck.is_empty():
+                        next_card = deck.take_card()
+                        all_sprites.remove(next_card)
+                        all_sprites.add(next_card)
+                        layout.add_card(next_card)
+                    else:
+                        deck.add_cards(layout.cards[::-1])
+                        layout.clear()
                     continue
                 if layout.rect.collidepoint(mouse_pos) and not layout.is_empty():
                     cur_card = layout.cards[-1]
